@@ -16,8 +16,8 @@ export function Header({ state, onGenerate, isGenerating }: HeaderProps) {
 
   return (
     <header className="h-14 border-b border-border bg-background flex items-center justify-between px-4 shrink-0">
-      <div className="flex items-center gap-3">
-        <div className="w-10 h-10 overflow-hidden rounded-lg flex items-center justify-center bg-white border border-border">
+      <div className="flex items-center gap-2 sm:gap-3 overflow-hidden">
+        <div className="w-8 h-8 sm:w-10 sm:h-10 overflow-hidden rounded-lg flex items-center justify-center bg-white border border-border shrink-0">
           <img 
             src="https://w.ladicdn.com/s250x250/64ef6b7f0b7ff20012403c07/phucuong-20260404132826-ddeul.jpg" 
             alt="PHÚ CƯỜNG Logo" 
@@ -25,11 +25,7 @@ export function Header({ state, onGenerate, isGenerating }: HeaderProps) {
             referrerPolicy="no-referrer"
           />
         </div>
-        <h1 className="font-bold text-lg tracking-tight hidden sm:block text-teal-700 uppercase">PHÚ CƯỜNG COMPANY</h1>
-        <div className="h-4 w-px bg-border mx-2 hidden sm:block" />
-        <span className="text-sm text-muted-foreground font-medium truncate max-w-[200px]">
-          {state.name}
-        </span>
+        <h1 className="font-bold text-sm sm:text-lg tracking-tight text-teal-700 uppercase truncate">PHÚ CƯỜNG COMPANY</h1>
       </div>
 
       <div className="flex items-center gap-2">
@@ -41,7 +37,7 @@ export function Header({ state, onGenerate, isGenerating }: HeaderProps) {
         
         <div className="h-6 w-px bg-border mx-1" />
         
-        <Button variant="outline" size="sm" className="hidden md:flex gap-2">
+        {/* <Button variant="outline" size="sm" className="hidden md:flex gap-2">
           <Plus className="w-4 h-4" />
           Dự án mới
         </Button>
@@ -59,7 +55,7 @@ export function Header({ state, onGenerate, isGenerating }: HeaderProps) {
         >
           <Play className={cn("w-4 h-4", isGenerating && "animate-pulse")} />
           {isGenerating ? "Đang tạo..." : "Tạo ảnh hoàn thiện"}
-        </Button>
+        </Button> */}
       </div>
     </header>
   );

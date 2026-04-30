@@ -2,54 +2,59 @@ import { ProjectState } from '../types';
 
 export function generatePrompt(state: ProjectState): string {
   const { 
+    mode,
     selectedSpace, 
     materialAssignments,
+    detailedDescription,
     constraints,
     advanced
   } = state;
 
-  const spaceLabel = selectedSpace.replace('_', ' ');
+  let prompt = `Dùng ảnh công trình thực tế làm nền chính. Dùng các ảnh mẫu (nếu có) được gửi kèm sau ảnh hiện trạng để tham chiếu vật liệu, texture, màu sắc và kiểu dáng sản phẩm. Chỉ hoàn thiện phần được chọn, giữ nguyên toàn bộ kiến trúc, góc chụp, phối cảnh, ánh sáng và bố cục gốc. Vật liệu phải bám chính xác lên đúng bề mặt, đúng hình học, đúng chiều sâu không gian, đúng tỷ lệ thực tế, với texture chân thật, phản xạ tự nhiên và bóng đổ đúng hướng.
 
-  let prompt = `Dùng ảnh công trình thực tế làm nền chính. Dùng ảnh mẫu tham chiếu của vật liệu hoặc sản phẩm để ghép vào đúng khu vực đã đánh dấu. Chỉ hoàn thiện phần được chọn, giữ nguyên toàn bộ kiến trúc, góc chụp, phối cảnh, ánh sáng và bố cục gốc. Vật liệu phải bám chính xác lên đúng bề mặt, đúng hình học, đúng chiều sâu không gian, đúng tỷ lệ thực tế, với texture chân thật, đường ron hợp lý, phản xạ tự nhiên, bóng đổ đúng hướng và kết quả giống ảnh chụp thật sau thi công hoàn thiện.`;
+[HƯỚNG DẪN THAM CHIẾU]:
+- Các ảnh mẫu sản phẩm được hệ thống đánh số thứ tự là Mẫu 1, Mẫu 2, Mẫu 3... tương ứng với thứ tự các ảnh được gửi kèm sau ảnh hiện trạng.
+- Bạn phải đọc kỹ [YÊU CẦU CHI TIẾT] để biết mẫu nào sẽ được áp dụng cho vị trí nào trong ảnh thực tế.`;
 
-  prompt += `\n\n[KHÔNG GIAN]: ${spaceLabel}.`;
+  if (mode === 'structured') {
+    const spaceLabel = selectedSpace.replace('_', ' ');
+    prompt += `\n\n[KHÔNG GIAN]: ${spaceLabel}.`;
 
-  let refPhotoCounter = 1;
-  const assignmentsWithPhotos = materialAssignments.filter(a => a.referencePhoto);
-  
-  materialAssignments.forEach((assignment) => {
-    const surfaceLabel = assignment.surface.toUpperCase();
-    const materialLabel = assignment.material.replace('_', ' ');
+    materialAssignments.forEach((assignment, index) => {
+      const surfaceLabel = assignment.surface.toUpperCase();
+      const materialLabel = assignment.material.replace('_', ' ');
+      const refLabel = `Mẫu ${index + 1}`;
+      
+      let assignmentPrompt = `\n\n[${surfaceLabel}]: Sử dụng vật liệu ${materialLabel}. ${assignment.description}.`;
+      
+      if (assignment.referencePhoto) {
+        assignmentPrompt += ` TUYỆT ĐỐI CHỈ SỬ DỤNG ${refLabel} làm mẫu texture và màu sắc cho bề mặt [${surfaceLabel}] này.`;
+      }
+      
+      prompt += assignmentPrompt;
+    });
     
-    let assignmentPrompt = `\n\n[${surfaceLabel}]: Sử dụng vật liệu ${materialLabel}. ${assignment.description}.`;
-    
-    if (assignment.referencePhoto) {
-      assignmentPrompt += ` TUYỆT ĐỐI CHỈ SỬ DỤNG ảnh mẫu tham chiếu thứ ${refPhotoCounter} (được gửi kèm sau ảnh hiện trạng) làm mẫu texture, màu sắc và kiểu dáng cho bề mặt [${surfaceLabel}] này. KHÔNG ĐƯỢC nhầm lẫn với các ảnh mẫu khác.`;
-      refPhotoCounter++;
+    if (detailedDescription) {
+      prompt += `\n\n[GHI CHÚ THÊM]: ${detailedDescription}`;
     }
-    
-    if (assignment.surface === 'floor') {
-      assignmentPrompt += ` Phủ kín toàn bộ bề mặt sàn trong vùng chọn, đúng hướng lát, đúng tỷ lệ viên gạch, đúng đường ron, không tràn lên chân tường hoặc đồ vật khác. Texture của gạch phải thể hiện rõ độ bóng/mờ, phản chiếu ánh sáng từ cửa sổ và đèn trần một cách tự nhiên.`;
-    } else if (assignment.surface === 'wall') {
-      assignmentPrompt += ` Ốp đúng mảng tường trong vùng chọn, đúng cao độ, đúng phối cảnh, đúng kích thước viên gạch, không tràn sang cửa, khung, kính hoặc các chi tiết khác. Các mép gạch phải sắc nét, khớp với các góc tường và trần.`;
-    } else if (['lavabo', 'toilet', 'shower'].includes(assignment.material)) {
-      assignmentPrompt += ` Đặt thiết bị vào đúng vị trí sử dụng hợp lý trong không gian, đúng tỷ lệ người dùng thực tế, đúng tiếp xúc với sàn hoặc tường, có bóng đổ tự nhiên và không làm thay đổi cấu trúc phòng. Bề mặt sứ hoặc kim loại phải có độ bóng chân thực.`;
-    }
+  } else {
+    prompt += `\n\n[YÊU CẦU CHI TIẾT]: ${detailedDescription || "Hãy hoàn thiện không gian theo các ảnh mẫu vật liệu đi kèm một cách chân thực nhất."}
 
-    prompt += assignmentPrompt;
-  });
+Ví dụ: Nếu người dùng ghi "Lát sàn bằng Mẫu 1", bạn phải lấy texture từ ảnh mẫu thứ nhất sau ảnh hiện trạng để áp lên sàn.`;
+  }
 
-  prompt += `\n\n[QUY TẮC NGHIÊM NGẶT]:
-1. TUYỆT ĐỐI KHÔNG nhầm lẫn giữa gạch lát sàn và gạch ốp tường.
-2. Mỗi [BỀ MẶT] phải đi kèm đúng [ẢNH MẪU THAM CHIẾU] tương ứng đã chỉ định.
-3. Nếu chọn 'floor', vật liệu PHẢI nằm trên mặt đất. Nếu chọn 'wall', vật liệu PHẢI nằm trên các diện đứng.
-4. Giữ nguyên cấu trúc gạch, màu sắc và texture từ ảnh mẫu tham chiếu một cách chính xác nhất.
-5. KHÔNG ĐƯỢC lấy ảnh mẫu của sàn để ốp lên tường và ngược lại. Đây là yêu cầu quan trọng nhất.`;
+  prompt += `\n\n[QUY TẮC THỰC HIỆN]:
+1. Chỉ thay đổi vật liệu trên các bề mặt, giữ nguyên toàn bộ kiến trúc, góc chụp, phối cảnh và bố cục gốc của ảnh hiện trạng.
+2. Vật liệu từ ảnh mẫu phải được áp chính xác lên bề mặt trong ảnh hiện trạng, đúng hình học, đúng chiều sâu, đúng tỷ lệ kích thước thực tế nếu người dùng cung cấp các kích thước cụ thể phải tính toán kích thước không gian căn phòng, khu vực để tham chiếu sang kích thước vật liệu mẫu và ghép cho chính xác.
+Ví dụ: Nếu người dùng ghi kích thước nhà vệ sinh rộng 2m dài 4m, gạch rộng 30 cm dài 60 cm thì chiều rộng của nhà vệ sinh nếu lát sàn gạch dọc thì cắt 6 viên đủ và 1 viên bị cắt đi 10 cm còn lại 20 cm để lát theo chiều dọc gạch, nếu lát ngang thì 3 viên liền và 1 viên bị cắt 40 cm còn lại 20 cm để lát theo chiều ngang tương ứng chiều rộng của phòng vệ sinh.
+Nếu người dùng ghi lát so le thì 1 hàng bắt đầu bằng 1 viên nguyên và hàng tiếp theo bắt đầu bằng 1 nửa viên gạch.
+3. CHÚ Ý KHOÉT LỖ GẠCH: Khi ốp, lát gạch (hoặc các vật liệu khác), TUYỆT ĐỐI KHÔNG ĐƯỢC ỐP BÍT KÍN các lỗ chờ kỹ thuật trên tường và sàn. Cụ thể: các vị trí thợ thi công đã để đầu ống chờ (đường ống nước, thoát sàn), đầu ổ điện chờ, lỗ thoáng, quạt hút mùi... PHẢI giữ nguyên và khoét lỗ gạch chính xác xung quanh chúng để các thiết bị sau này (lavabo, vòi sen, bồn cầu, bình nóng lạnh, công tắc...) có thể lắp đặt đúng vị trí.
+4. Texture phải chân thật, đường ron hợp lý, độ bóng/mờ tự nhiên, phản xạ ánh sáng và bóng đổ đúng hướng theo nguồn sáng trong ảnh gốc.
+5. Kết quả cuối cùng phải trông như một bức ảnh chụp thực tế (photorealistic).
 
-  prompt += `\n\n[THÔNG SỐ KỸ THUẬT]:
-- Không gian: ${spaceLabel}
-- Cường độ tuân theo mẫu: ${advanced.intensity}%
-- Mức độ sáng tạo: ${advanced.creativity}%`;
+[THÔNG SỐ KỸ THUẬT]:
+- Cường độ tuân theo mẫu (Intensity): ${advanced.intensity}%
+- Mức độ sáng tạo (Creativity): ${advanced.creativity}%`;
 
   const constraintPrompts = [];
   if (constraints.preserveArchitecture) constraintPrompts.push("giữ nguyên kiến trúc gốc (preserve original architecture)");
@@ -57,13 +62,13 @@ export function generatePrompt(state: ProjectState): string {
   if (constraints.preserveLighting) constraintPrompts.push("giữ nguyên ánh sáng thật (keep original lighting)");
   if (constraints.preserveScale) constraintPrompts.push("giữ tỷ lệ thực tế của sản phẩm (accurate scale)");
   if (constraints.noExtraObjects) constraintPrompts.push("không thêm vật thể lạ (no extra objects)");
-  if (constraints.realisticPhoto) constraintPrompts.push("ưu tiên ảnh giống chụp thật, photorealistic, 8k resolution, realistic shadows, true-to-life textures, like real post-construction photography");
+  if (constraints.realisticPhoto) constraintPrompts.push("ưu tiên ảnh giống chụp thật, photorealistic, 8k resolution, realistic shadows, true-to-life textures");
 
   if (constraintPrompts.length > 0) {
-    prompt += `\n\n[RÀNG BUỘC]: ${constraintPrompts.join(', ')}.`;
+    prompt += `\n\n[RÀNG BUỘC AI]: ${constraintPrompts.join(', ')}.`;
   }
 
-  prompt += `\n\n[KẾT QUẢ]: Ảnh đầu ra phải trông như một bức ảnh chụp thực tế sau khi công trình đã hoàn thiện xong xuôi, sạch sẽ, chuyên nghiệp, không có cảm giác CGI hay minh họa.`;
+  prompt += `\n\n[KẾT QUẢ]: Tạo ra ảnh hoàn thiện chuyên nghiệp, sạch sẽ, không có các vật liệu hoặc các đồ vật thi công còn sót lại, không có cảm giác CGI hay minh họa.`;
 
   return prompt;
 }

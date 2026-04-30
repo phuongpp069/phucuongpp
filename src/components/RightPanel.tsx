@@ -45,14 +45,76 @@ export function RightPanel({
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const handleDownload = (url: string, index: number) => {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `phu-cuong-result-${state.id}-${index + 1}.png`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    toast.success("Đang tải ảnh xuống...");
+  const handleDownload = async (url: string, index: number) => {
+    toast.info("Đang xử lý ảnh...");
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.src = url;
+      await new Promise((resolve, reject) => {
+        img.onload = resolve;
+        img.onerror = reject;
+      });
+
+      const canvas = document.createElement('canvas');
+      canvas.width = img.width;
+      canvas.height = img.height;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) throw new Error("Could not get canvas context");
+
+      // Draw the image
+      ctx.drawImage(img, 0, 0);
+
+      // Setup watermark style
+      const p = 8; // padding
+      const fontSize = Math.max(12, Math.floor(img.width * 0.015)); // scalable font size
+      
+      // Text
+      const text = "Đây là bản vẽ concept tham khảo, không dùng để thi công!";
+      ctx.font = `400 ${fontSize}px sans-serif`;
+      const textMetrics = ctx.measureText(text);
+      const textWidth = textMetrics.width;
+      const textHeight = fontSize;
+
+      // Draw pill background
+      const paddingX = fontSize * 0.8;
+      const paddingY = fontSize * 0.4;
+      const pillW = textWidth + paddingX * 2;
+      const pillH = textHeight + paddingY * 2;
+      const pillX = (img.width - pillW) / 2;
+      const pillY = img.height - pillH - p;
+
+      ctx.fillStyle = "rgba(0, 0, 0, 0.3)";
+      ctx.beginPath();
+      ctx.roundRect(pillX, pillY, pillW, pillH, pillH / 2);
+      ctx.fill();
+
+      // Draw text
+      ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText(text, img.width / 2, pillY + pillH / 2);
+
+      // Download
+      const dataUrl = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = `phu-cuong-result-${state.id}-${index + 1}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      toast.success("Đã tải ảnh xuống thành công!");
+    } catch (err) {
+      console.error(err);
+      toast.error("Có lỗi khi tải ảnh xuống.");
+      // Fallback
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `phu-cuong-result-${state.id}-${index + 1}.png`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
   };
 
   const handleShare = async (url: string) => {
@@ -121,30 +183,6 @@ export function RightPanel({
               <section className="space-y-3">
                 <div className="flex items-center justify-between">
                   <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Gợi ý nhanh (Presets)
-                  </Label>
-                </div>
-                <div className="grid grid-cols-2 gap-2">
-                  {PRESET_PROMPTS.map((preset) => (
-                    <button
-                      key={preset.id}
-                      onClick={() => setState(prev => ({ ...prev, selectedSpace: preset.space as any }))}
-                      className="text-left px-3 py-2 rounded-lg border border-border bg-background hover:border-teal-600/50 hover:bg-teal-50/50 dark:hover:bg-teal-950/20 transition-all group"
-                    >
-                      <p className="text-[10px] font-bold text-teal-600 mb-0.5 uppercase tracking-tighter">
-                        {preset.space.replace('_', ' ')}
-                      </p>
-                      <p className="text-xs font-medium line-clamp-1 group-hover:text-teal-700 dark:group-hover:text-teal-400">
-                        {preset.name}
-                      </p>
-                    </button>
-                  ))}
-                </div>
-              </section>
-
-              <section className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <Label className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
                     Prompt tự động sinh
                   </Label>
                   <Button variant="ghost" size="icon" className="h-6 w-6" onClick={handleCopy}>
@@ -185,6 +223,11 @@ export function RightPanel({
                         onClick={() => handleSelectResult(i)}
                       >
                         <img src={url} alt={`Result ${i}`} className="w-full h-full object-cover" />
+                        <div className="absolute inset-x-0 bottom-1 flex justify-center pointer-events-none opacity-80 scale-75 origin-bottom">
+                          <p className="text-white/70 text-[8px] font-normal bg-black/30 backdrop-blur-sm px-2 py-0.5 rounded-full shadow-sm text-center">
+                            Đây là bản vẽ concept tham khảo, không dùng để thi công!
+                          </p>
+                        </div>
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-3">
                           <Button 
                             size="icon" 
@@ -217,9 +260,35 @@ export function RightPanel({
                       </div>
                       <div className="flex items-center justify-between px-1">
                         <span className="text-[10px] text-muted-foreground font-medium">Tạo lúc: {new Date().toLocaleTimeString()}</span>
-                        <Button variant="link" className="h-auto p-0 text-[10px] text-teal-600 font-bold uppercase tracking-wider">
-                          Dùng lại prompt này
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="link" 
+                            className="h-auto p-0 text-[10px] text-teal-600 font-bold uppercase tracking-wider"
+                            onClick={() => {
+                              setState(prev => ({
+                                ...prev,
+                                currentPhoto: url
+                              }));
+                              toast.success("Đã chuyển ảnh kết quả này thành ảnh hiện trạng!");
+                            }}
+                          >
+                            <RefreshCw className="w-3 h-3 mr-1" />
+                            Sửa tiếp
+                          </Button>
+                          <Button 
+                            variant="link" 
+                            className="h-auto p-0 text-[10px] text-teal-600 font-bold uppercase tracking-wider"
+                            onClick={() => {
+                              const histItem = state.history.find(h => h.result === url);
+                              if (histItem) {
+                                setState(prev => ({ ...prev, detailedDescription: histItem.prompt, mode: 'manual' }));
+                                toast.success("Đã tải prompt vào form yêu cầu.");
+                              }
+                            }}
+                          >
+                            Dùng lại prompt
+                          </Button>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -231,17 +300,8 @@ export function RightPanel({
                   </div>
                   <div className="space-y-1">
                     <p className="text-sm font-bold">Chưa có kết quả</p>
-                    <p className="text-xs max-w-[200px]">Cấu hình và nhấn nút Tạo ảnh để xem phương án hoàn thiện</p>
+                    <p className="text-xs max-w-[200px]">Tính năng sẽ hiện kết quả sau khi AI xử lý xong</p>
                   </div>
-                  <Button 
-                    onClick={onGenerate} 
-                    disabled={isGenerating || !state.currentPhoto}
-                    variant="outline"
-                    size="sm"
-                    className="mt-4"
-                  >
-                    Bắt đầu ngay
-                  </Button>
                 </div>
               )}
             </div>
@@ -299,29 +359,6 @@ export function RightPanel({
           )}
         </div>
       </ScrollArea>
-
-      <div className="p-4 border-t border-border bg-background shrink-0">
-        <Button 
-          onClick={onGenerate} 
-          disabled={isGenerating || !state.currentPhoto}
-          className="w-full bg-teal-600 hover:bg-teal-700 text-white h-11 font-bold shadow-lg shadow-teal-600/20"
-        >
-          {isGenerating ? (
-            <div className="flex items-center gap-2">
-              <RefreshCw className="w-4 h-4 animate-spin" />
-              Đang xử lý AI...
-            </div>
-          ) : (
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4" />
-              Tạo ảnh hoàn thiện
-            </div>
-          )}
-        </Button>
-        <p className="text-[10px] text-center text-muted-foreground mt-3">
-          Sử dụng 1 credit cho mỗi lần tạo. <a href="#" className="text-teal-600 font-bold">Nâng cấp gói</a>
-        </p>
-      </div>
     </div>
   );
 }

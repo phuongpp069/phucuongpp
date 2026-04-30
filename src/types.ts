@@ -41,12 +41,24 @@ export interface MaterialAssignment {
   referencePhoto: string | null;
 }
 
+export interface MaterialLibraryItem {
+  id: string;
+  code: string;
+  name: string;
+  size: string;
+  category: MaterialType;
+  imageUrl: string;
+}
+
 export interface ProjectState {
   id: string;
   name: string;
+  mode: 'structured' | 'manual';
   currentPhoto: string | null;
   selectedSpace: SpaceType;
   materialAssignments: MaterialAssignment[];
+  referencePhotos: string[];
+  detailedDescription: string;
   constraints: {
     preserveArchitecture: boolean;
     preservePerspective: boolean;
@@ -62,9 +74,10 @@ export interface ProjectState {
     creativity: number;
   };
   generatedPrompt: string;
+  maskData: string | null; // Base64 mask image
   results: string[];
   selectedResultIndex: number | null;
-  activeMiddleTab: 'original' | 'result';
+  activeMiddleTab: 'original' | 'mask' | 'result';
   history: {
     timestamp: number;
     prompt: string;
